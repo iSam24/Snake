@@ -4,10 +4,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <windows.h>
+#include <set>
 
 using namespace std;
 
 bool gameOver;
+bool fruitAvailable;
 const int height=20;
 const int width=40;
 int x,y,fx,fy,score;
@@ -15,6 +17,8 @@ enum Direction {STOP = 0, LEFT, RIGHT, UP, DOWN};
 Direction dir;
 
 std::vector<std::pair<int, int>> snake; // Snake body
+std::vector<std::pair<int, int>> fruit; // Fruit
+std::set<std::pair<int, int>> unique_pairs;
 
 void Setup(){
     gameOver = false;
@@ -22,7 +26,10 @@ void Setup(){
     y = height/2;
     score = 0;
     dir = STOP;       // Initial direction
-    snake = { {width / 2, height / 2} }; // spawns a snake
+    snake = { {width / 2, height / 2} }; // create snake
+    srand(static_cast<unsigned>(time(0))); // Seed rand() with current time
+    system("CLS");  // clear screen
+
 }
 
 void gotoxy(int x, int y) {
@@ -32,7 +39,7 @@ void gotoxy(int x, int y) {
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
 
-void  DrawGrid(){
+void DrawGrid(){
     gotoxy(0, 0);
     // draw exterior of grid
     for(int i=0; i < width; i++){
@@ -67,7 +74,7 @@ void DrawSnake(){
 }
 
 void MoveSnake() {
-    for (int i = snake.size() - 1; i >= 0; --i) {
+    for (int i = snake.size() - 1; i > 0; --i) {
         snake[i] = snake[i - 1]; // Set current segment to the position of the previous one
     }
 
@@ -77,26 +84,35 @@ void MoveSnake() {
             break;
         case RIGHT:
             snake[0].first += 1; // add one to x
+            break;
         case UP:
-            snake[0].second += 1; // add one to y
+            snake[0].second -= 1; // add one to y
+            break;
         case DOWN:
-            snake[0].second -= 1; //minus one from y
+            snake[0].second += 1; //minus one from y
+            break;
         default:
             break; // No movement if dir == STOP
     }
 }
 
-void DrawFruit() {
-
+void CreateFruit() {
+    if(!fruitAvailable){
+        fruit.clear(); // Ensure only one fruit exists
+        int x = rand() % (width - 2) + 1;
+        int y = rand() % (height - 2) + 1;
+        fruit.emplace_back(x, y);
+        fruitAvailable = true;
+    }
+    gotoxy(fruit[0].first, fruit[0].second);
+    cout<<"*";
 }
 
 void Draw(){
-    system("CLS");  // clear screen
     DrawGrid();
     DrawSnake();
-    DrawFruit();
+    CreateFruit();
 }
-
 
 void UserInput(){
     // Takes user input
@@ -111,14 +127,26 @@ void UserInput(){
     }
 }
 
-void Logic(){
-    // logic around the snakes body
-
+void Logic() {
     // if snake hits wall
+    if (snake[0].first < 0 || snake[0].first >= width || snake[0].second < 0 || snake[0].second >= height) {
+        gameOver = true;
+    }
 
-    // if snake hits itself
+    // if snake eats itself
+    for (size_t i = 1; i < snake.size(); ++i) {
+        if (snake[0] == snake[i]) {
+            gameOver = true;
+            return;
+        }
+    }
 
     // if snake eats fruit
+    if (snake[0].first == fruit[0].first && snake[0].second == fruit[0].second) {
+        snake.push_back(snake.back());
+        fruit.pop_back(); // Remove eaten fruit
+        fruitAvailable = false;
+    }
 }
  
  int main(){
@@ -130,6 +158,6 @@ void Logic(){
         UserInput();
         MoveSnake();
         Logic();
-        _sleep(100);
+        Sleep(80);
     }
  }
