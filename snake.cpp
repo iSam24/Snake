@@ -15,21 +15,31 @@ const int width=40;
 int x,y,fx,fy,score;
 enum Direction {STOP = 0, LEFT, RIGHT, UP, DOWN};
 Direction dir;
+Direction lastDir;
 
 std::vector<std::pair<int, int>> snake; // Snake body
 std::vector<std::pair<int, int>> fruit; // Fruit
 std::set<std::pair<int, int>> unique_pairs;
 
+void DrawGrid();
+void UserInput();
+void gotoxy(int x, int y);
+
 void Setup(){
     gameOver = false;
-    x = width/2;
-    y = height/2;
+    x = width / 2;
+    y = height / 2;
     score = 0;
-    dir = STOP;       // Initial direction
-    snake = { {width / 2, height / 2} }; // create snake
-    srand(static_cast<unsigned>(time(0))); // Seed rand() with current time
-    system("CLS");  // clear screen
-
+    dir = STOP; // Wait for input to start
+    lastDir = STOP;
+    snake = {{width / 2, height / 2}};
+    srand(static_cast<unsigned>(time(0)));
+    system("CLS");
+    gotoxy(width / 2 - 10, height / 2);
+    cout << "Press W/A/S/D to Start";
+    while (dir == STOP) {
+        UserInput(); // Wait for user input
+    }
 }
 
 void gotoxy(int x, int y) {
@@ -97,7 +107,7 @@ void MoveSnake() {
 }
 
 void CreateFruit() {
-    if(!fruitAvailable){
+    if (!fruitAvailable) {
         fruit.clear(); // Ensure only one fruit exists
         int x = rand() % (width - 2) + 1;
         int y = rand() % (height - 2) + 1;
@@ -105,7 +115,7 @@ void CreateFruit() {
         fruitAvailable = true;
     }
     gotoxy(fruit[0].first, fruit[0].second);
-    cout<<"*";
+    cout << "*";
 }
 
 void Draw(){
@@ -125,15 +135,26 @@ void UserInput(){
         case 'x': gameOver = true; break; // Exit the game
         }
     }
+    // prevent snake going up and down and hitting itself rapidly
+    if ((dir == UP && lastDir == DOWN) ||
+        (dir == DOWN && lastDir == UP) ||
+        (dir == LEFT && lastDir == RIGHT) ||
+        (dir == RIGHT && lastDir == LEFT)) {
+        dir = lastDir;  // Ignore invalid direction change
+    }
+    else {
+        lastDir = dir;  // Update last valid direction
+    }
 }
 
 void Logic() {
-    // if snake hits wall
-    if (snake[0].first < 0 || snake[0].first >= width || snake[0].second < 0 || snake[0].second >= height) {
+    // Check if snake hits wall
+    if (snake[0].first <= 0 || snake[0].first >= width -1 ||
+        snake[0].second <= 0 || snake[0].second >= height - 1) {
         gameOver = true;
     }
 
-    // if snake eats itself
+    // Check if snake eats itself
     for (size_t i = 1; i < snake.size(); ++i) {
         if (snake[0] == snake[i]) {
             gameOver = true;
@@ -141,11 +162,11 @@ void Logic() {
         }
     }
 
-    // if snake eats fruit
+    // Check if snake eats fruit
     if (snake[0].first == fruit[0].first && snake[0].second == fruit[0].second) {
-        snake.push_back(snake.back());
-        fruit.pop_back(); // Remove eaten fruit
-        fruitAvailable = false;
+        snake.push_back(snake.back()); // Grow snake
+        fruit.pop_back();              // Remove eaten fruit
+        fruitAvailable = false;        // Indicate new fruit is needed
     }
 }
  
