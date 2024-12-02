@@ -1,2 +1,18 @@
-# executables
+# Ignore compiled files
 *.exe
+*.out
+*.o
+*.a
+
+# Ignore dependency libraries
+*.dll
+*.so
+*.dylib
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.iml
+
+# Ignore system-specific files
+*.DS_Store
