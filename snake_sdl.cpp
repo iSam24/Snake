@@ -15,8 +15,8 @@ bool gameOver;
 bool fruitAvailable;
 const int HEIGHT=20;
 const int WIDTH=20;
-const int SCOREHEIGHT=5;
-const int SCOREWIDTH=SCOREHEIGHT;
+const int SCOREHEIGHT=HEIGHT;
+const int SCOREWIDTH=7;
 const int SCORE_X_OFFSET = WIDTH;
 const int SCALE=20;
 enum Direction {STOP = 0, LEFT, RIGHT, UP, DOWN};
@@ -105,7 +105,7 @@ void Setup() {
     fruitAvailable = false;
     dir = STOP;
     lastDir = STOP;
-    score = 0;
+    score = 10;
     // Set starting position of the snake at the center of the grid
     snake.clear();
     snake.push_back({WIDTH / 2, HEIGHT / 2}); // Initial snake head
@@ -143,7 +143,7 @@ void DrawScoreboard(SDL_Renderer* renderer, int score) {
     TTF_Font* font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 24);
     if (!font) {
         printf("TTF_OpenFont: %s\n", TTF_GetError());
-        return; 
+        return;  
     }
 
     // Create text surface with the score
@@ -220,16 +220,16 @@ void MoveSnake() {
 
 void UserInput(SDL_Event& event){
     // Takes user input
-    if(event.type == SDL_KEYDOWN) {
-        switch (event.key.keysym.sym) {
-        case SDLK_w: dir = UP; break;
-        case SDLK_s: dir = DOWN; break;
-        case SDLK_a: dir = LEFT; break;
-        case SDLK_d: dir = RIGHT; break;
-        case SDLK_x: gameOver = true; break; // Exit the game
-        default: break;
+        if(event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+            case SDLK_w: dir = UP; break;
+            case SDLK_s: dir = DOWN; break;
+            case SDLK_a: dir = LEFT; break;
+            case SDLK_d: dir = RIGHT; break;
+            case SDLK_x: gameOver = true; break; // Exit the game
+            default: break;
+            }
         }
-    }
 
     // prevent snake going up and down and hitting itself rapidly
     if ((dir == UP && lastDir == DOWN) ||
