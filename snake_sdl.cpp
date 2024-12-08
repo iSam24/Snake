@@ -6,24 +6,31 @@
 #include <windows.h>
 #include <set>
 #include <SDL2/SDL.h>
+#include <SDL_ttf.h>
+#include <string>
 
 using namespace std;
 
 bool gameOver;
 bool fruitAvailable;
 const int HEIGHT=20;
-const int WIDTH=40;
+const int WIDTH=20;
+const int SCOREHEIGHT=5;
+const int SCOREWIDTH=SCOREHEIGHT;
+const int SCORE_X_OFFSET = WIDTH;
 const int SCALE=20;
 enum Direction {STOP = 0, LEFT, RIGHT, UP, DOWN};
 Direction dir;
 Direction lastDir;
+int score = 0;
 
 std::vector<std::pair<int, int>> snake; // Snake body
 std::vector<std::pair<int, int>> fruit; // Fruit
 
 // Define functions
-void DrawGrid(SDL_Renderer* renderer);
+void DrawBoard(SDL_Renderer* renderer);
 void DrawSnake(SDL_Renderer* renderer);
+void DrawScoreboard(SDL_Renderer* renderer, int score);
 void MoveSnake();
 void CreateFruit(SDL_Renderer* renderer);
 void UserInput(SDL_Event& event);
@@ -33,20 +40,25 @@ void Setup();
 
 int main(int argc, char* argv[]){
     SDL_Init(SDL_INIT_VIDEO);
-
+    TTF_Init();
     SDL_Window *window = SDL_CreateWindow("Snake", 
                                             100, 
                                             100, 
-                                            WIDTH * SCALE, 
+                                            (WIDTH + SCOREWIDTH) * SCALE, 
                                             HEIGHT * SCALE, 
                                             SDL_WINDOW_ALLOW_HIGHDPI);
     // Check window is created
     if (!window)
     {
         cerr << "Could not create window: %s\n", SDL_GetError();
-        return 1;   // Exit if window creation fails
+        return 1;
     }
-
+    // Check TTF is initialised
+    if (TTF_Init() == -1) {
+        cerr << "SDL_ttf could not initialize! TTF_Error: " << TTF_GetError() << std::endl;
+        SDL_Quit();
+        return 1;
+    }
 
     cout << "Creating Render";
     SDL_Renderer *renderer = SDL_CreateRenderer(window, 
@@ -60,25 +72,29 @@ int main(int argc, char* argv[]){
     Setup();
 
     while(!gameOver) {
+        // Event handling
+        while (SDL_PollEvent(&windowEvent)) {
+            if (windowEvent.type == SDL_QUIT) {
+                gameOver = true; // Exit game loop
+            } else if (windowEvent.type == SDL_KEYDOWN) {
+                UserInput(windowEvent); // Handle user input
+            }
+        }
         SDL_RenderClear(renderer);
-        DrawGrid(renderer);
+        DrawBoard(renderer);
+        DrawScoreboard(renderer, score);
         DrawSnake(renderer);
-        UserInput(windowEvent);
         MoveSnake();
         CreateFruit(renderer);
         Logic();
-        if ( SDL_PollEvent (&windowEvent))
-        {
-            if (SDL_QUIT == windowEvent.type)
-            { 
-                break; // Exit loop if the user tries to close the window
-            }
-        }
         SDL_RenderPresent(renderer);
         SDL_Delay(80);
     }
 
-    SDL_DestroyWindow (window);
+    // Cleanup
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
 
     return 0;
@@ -89,7 +105,7 @@ void Setup() {
     fruitAvailable = false;
     dir = STOP;
     lastDir = STOP;
-
+    score = 0;
     // Set starting position of the snake at the center of the grid
     snake.clear();
     snake.push_back({WIDTH / 2, HEIGHT / 2}); // Initial snake head
@@ -98,9 +114,9 @@ void Setup() {
     srand(time(0));
 }
 
-void DrawGrid(SDL_Renderer* renderer) {
-    // Draw the background grid
-    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255); // Light grey
+void DrawBoard(SDL_Renderer* renderer) {
+    // Draw the background 
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); // Black
     for (int i = 0; i < WIDTH; ++i) {
         for (int j = 0; j < HEIGHT; ++j) {
             SDL_Rect rect = {i * SCALE, j * SCALE, SCALE, SCALE};
@@ -109,8 +125,69 @@ void DrawGrid(SDL_Renderer* renderer) {
     }
 }
 
+void DrawScoreboard(SDL_Renderer* renderer, int score) {
+    // Draw the scoreboard background
+    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255); // Light grey
+    SDL_Rect scoreboard = {
+        SCORE_X_OFFSET * SCALE,   // X position (right of grid)
+        0,                        // Y position (top of screen)
+        SCOREWIDTH * SCALE,       // Width of the scoreboard
+        SCOREHEIGHT * SCALE       // Height of the scoreboard
+    };
+    SDL_RenderFillRect(renderer, &scoreboard);
+
+    // Render the score text
+    string scoreText = "Score: " + std::to_string(score);
+
+    // Load font
+    TTF_Font* font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 24);
+    if (!font) {
+        printf("TTF_OpenFont: %s\n", TTF_GetError());
+        return; 
+    }
+
+    // Create text surface with the score
+    SDL_Color textColor = {0, 0, 0, 255}; // Black color for text
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
+    if (!textSurface) {
+        printf("TTF_RenderText_Solid: %s\n", TTF_GetError());
+        TTF_CloseFont(font);
+        return;
+    }
+
+    // Create texture from the surface
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!textTexture) {
+        printf("SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
+        SDL_FreeSurface(textSurface);
+        TTF_CloseFont(font);
+        return;
+    }
+
+    // Get the width and height of the text
+    int textWidth = textSurface->w;
+    int textHeight = textSurface->h;
+
+    // Define where to render the text
+    SDL_Rect textRect = {
+        SCORE_X_OFFSET * SCALE + 10, // Add some padding from the left
+        10,                          // Padding from the top
+        textWidth,                   // Width of the text
+        textHeight                   // Height of the text
+    };
+
+    // Render the text
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    // Clean up
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+    TTF_CloseFont(font);
+}
+
+
 void DrawSnake(SDL_Renderer* renderer){
-// Iterate through the snake vector, which stores the snake's body as pairs of (x, y) coordinates.
+    // Iterate through the snake vector, which stores the snake's body as pairs of (x, y) coordinates.
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green color
     for(const auto& segment : snake) {
         SDL_Rect rect = {segment.first * SCALE, segment.second * SCALE, SCALE, SCALE};
@@ -143,16 +220,14 @@ void MoveSnake() {
 
 void UserInput(SDL_Event& event){
     // Takes user input
-    while(SDL_PollEvent(&event)) {
-        if(event.type == SDL_KEYDOWN) {
-            switch (event.key.keysym.sym) {
-            case SDLK_w: dir = UP; break;
-            case SDLK_s: dir = DOWN; break;
-            case SDLK_a: dir = LEFT; break;
-            case SDLK_d: dir = RIGHT; break;
-            case SDLK_x: gameOver = true; break; // Exit the game
-            default: break;
-            }
+    if(event.type == SDL_KEYDOWN) {
+        switch (event.key.keysym.sym) {
+        case SDLK_w: dir = UP; break;
+        case SDLK_s: dir = DOWN; break;
+        case SDLK_a: dir = LEFT; break;
+        case SDLK_d: dir = RIGHT; break;
+        case SDLK_x: gameOver = true; break; // Exit the game
+        default: break;
         }
     }
 
@@ -188,6 +263,7 @@ void Logic() {
         snake.push_back(snake.back()); // Grow snake
         fruit.pop_back();              // Remove eaten fruit
         fruitAvailable = false;        // Indicate new fruit is needed
+        score++;
     }
 }
 
