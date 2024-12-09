@@ -8,6 +8,8 @@
 #include <SDL2/SDL.h>
 #include <SDL_ttf.h>
 #include <string>
+#include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -23,6 +25,7 @@ enum Direction {STOP = 0, LEFT, RIGHT, UP, DOWN};
 Direction dir;
 Direction lastDir;
 int score = 0;
+int highScore = 0;
 
 std::vector<std::pair<int, int>> snake; // Snake body
 std::vector<std::pair<int, int>> fruit; // Fruit
@@ -36,7 +39,9 @@ void CreateFruit(SDL_Renderer* renderer);
 void UserInput(SDL_Event& event);
 void Logic();
 void Setup();
-
+void Teardown(SDL_Renderer* renderer, SDL_Window* window);
+void LoadHighScore();
+void WriteHighScore();
 
 int main(int argc, char* argv[]){
     SDL_Init(SDL_INIT_VIDEO);
@@ -72,7 +77,6 @@ int main(int argc, char* argv[]){
     Setup();
 
     while(!gameOver) {
-        // Event handling
         while (SDL_PollEvent(&windowEvent)) {
             if (windowEvent.type == SDL_QUIT) {
                 gameOver = true; // Exit game loop
@@ -91,12 +95,7 @@ int main(int argc, char* argv[]){
         SDL_Delay(80);
     }
 
-    // Cleanup
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    TTF_Quit();
-    SDL_Quit();
-
+    Teardown(renderer, window);
     return 0;
  }
 
@@ -105,13 +104,23 @@ void Setup() {
     fruitAvailable = false;
     dir = STOP;
     lastDir = STOP;
-    score = 10;
+    score = 0;
     // Set starting position of the snake at the center of the grid
     snake.clear();
     snake.push_back({WIDTH / 2, HEIGHT / 2}); // Initial snake head
 
     // Seed random number generator
     srand(time(0));
+
+    // Load highScore
+    LoadHighScore();
+}
+
+void Teardown(SDL_Renderer* renderer, SDL_Window* window) {
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    SDL_Quit();
 }
 
 void DrawBoard(SDL_Renderer* renderer) {
@@ -138,6 +147,9 @@ void DrawScoreboard(SDL_Renderer* renderer, int score) {
 
     // Render the score text
     string scoreText = "Score: " + std::to_string(score);
+    
+    // Render the highScore text
+    string highScoreText = "High Score: " + std::to_string(highScore);
 
     // Load font
     TTF_Font* font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 24);
@@ -146,42 +158,56 @@ void DrawScoreboard(SDL_Renderer* renderer, int score) {
         return;  
     }
 
-    // Create text surface with the score
+    // Create text surface with the score and highScore
     SDL_Color textColor = {0, 0, 0, 255}; // Black color for text
-    SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
-    if (!textSurface) {
+    SDL_Surface* scoreTextSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
+    SDL_Surface* highScoreTextSurface = TTF_RenderText_Solid(font, highScoreText.c_str(), textColor);
+    if (!scoreTextSurface || !highScoreTextSurface) {
         printf("TTF_RenderText_Solid: %s\n", TTF_GetError());
         TTF_CloseFont(font);
         return;
     }
 
     // Create texture from the surface
-    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    if (!textTexture) {
+    SDL_Texture* scoreTextTexture = SDL_CreateTextureFromSurface(renderer, scoreTextSurface);
+    SDL_Texture* highScoreTextTexture = SDL_CreateTextureFromSurface(renderer, highScoreTextSurface);
+
+    if (!scoreTextTexture || !highScoreTextTexture) {
         printf("SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
-        SDL_FreeSurface(textSurface);
+        SDL_FreeSurface(scoreTextSurface);
         TTF_CloseFont(font);
         return;
     }
 
     // Get the width and height of the text
-    int textWidth = textSurface->w;
-    int textHeight = textSurface->h;
+    int textWidth = scoreTextSurface->w;
+    int textHeight = scoreTextSurface->h;
 
-    // Define where to render the text
-    SDL_Rect textRect = {
+    // Define where to render the score text
+    SDL_Rect scoreTextRect = {
         SCORE_X_OFFSET * SCALE + 10, // Add some padding from the left
         10,                          // Padding from the top
         textWidth,                   // Width of the text
         textHeight                   // Height of the text
     };
 
+    // Define where to render the highScore text
+    SDL_Rect highScoreTextRect = {
+        SCORE_X_OFFSET * SCALE + 10, // Add some padding from the left
+        40,                          // Padding from the top
+        textWidth + 30,              // Width of the text
+        textHeight                   // Height of the text
+    };
+
     // Render the text
-    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+    SDL_RenderCopy(renderer, scoreTextTexture, NULL, &scoreTextRect);
+    SDL_RenderCopy(renderer, highScoreTextTexture, NULL, &highScoreTextRect);
 
     // Clean up
-    SDL_FreeSurface(textSurface);
-    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(scoreTextSurface);
+    SDL_FreeSurface(highScoreTextSurface);
+    SDL_DestroyTexture(scoreTextTexture);
+    SDL_DestroyTexture(highScoreTextTexture);
     TTF_CloseFont(font);
 }
 
@@ -265,6 +291,12 @@ void Logic() {
         fruitAvailable = false;        // Indicate new fruit is needed
         score++;
     }
+
+    // Check if score exceeds high score
+    if(score > highScore) {
+        highScore = score;
+        WriteHighScore();
+    }
 }
 
 void CreateFruit(SDL_Renderer* renderer) {
@@ -278,4 +310,25 @@ void CreateFruit(SDL_Renderer* renderer) {
     }
     SDL_Rect rect = {fruit[0].first * SCALE, fruit[0].second * SCALE, SCALE, SCALE};
     SDL_RenderFillRect(renderer, &rect);
+}
+
+// Writes the highscore variable to the game_data.txt file.
+void WriteHighScore() {
+        ofstream outFile("game_data.txt");
+        outFile << "Highscore: " << highScore;
+        outFile.close();
+}
+
+// Loads the stored highscore value from game_data.txt into the highScore variable
+void LoadHighScore() {
+    ifstream inFile("game_data.txt");
+    if (inFile) {
+        string line;
+        if (getline(inFile, line)) {
+            size_t pos = line.find(":");    // finds position of the first occurence of :
+            if (pos != string::npos) { // if char is not not found (confusing aye right?!)
+                highScore = stoi(line.substr(pos + 1)); //convert from string to int
+            }
+        }
+    }
 }
