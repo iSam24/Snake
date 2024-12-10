@@ -15,8 +15,8 @@ using namespace std;
 
 bool gameOver;
 bool fruitAvailable;
-const int HEIGHT=20;
-const int WIDTH=20;
+const int HEIGHT=30;
+const int WIDTH=30;
 const int SCOREHEIGHT=HEIGHT;
 const int SCOREWIDTH=7;
 const int SCORE_X_OFFSET = WIDTH;
@@ -26,6 +26,7 @@ Direction dir;
 Direction lastDir;
 int score = 0;
 int highScore = 0;
+string playerName = "";
 
 std::vector<std::pair<int, int>> snake; // Snake body
 std::vector<std::pair<int, int>> fruit; // Fruit
@@ -42,6 +43,8 @@ void Setup();
 void Teardown(SDL_Renderer* renderer, SDL_Window* window);
 void LoadHighScore();
 void WriteHighScore();
+string GetPlayerName(SDL_Renderer* renderer, SDL_Event& event);
+
 
 int main(int argc, char* argv[]){
     SDL_Init(SDL_INIT_VIDEO);
@@ -75,6 +78,8 @@ int main(int argc, char* argv[]){
     SDL_Event windowEvent;
 
     Setup();
+    playerName = GetPlayerName(renderer, windowEvent);
+    LoadHighScore();
 
     while(!gameOver) {
         while (SDL_PollEvent(&windowEvent)) {
@@ -111,9 +116,6 @@ void Setup() {
 
     // Seed random number generator
     srand(time(0));
-
-    // Load highScore
-    LoadHighScore();
 }
 
 void Teardown(SDL_Renderer* renderer, SDL_Window* window) {
@@ -314,14 +316,14 @@ void CreateFruit(SDL_Renderer* renderer) {
 
 // Writes the highscore variable to the game_data.txt file.
 void WriteHighScore() {
-        ofstream outFile("game_data.txt");
+        ofstream outFile("high_score.txt");
         outFile << "Highscore: " << highScore;
         outFile.close();
 }
 
 // Loads the stored highscore value from game_data.txt into the highScore variable
 void LoadHighScore() {
-    ifstream inFile("game_data.txt");
+    ifstream inFile("high_score.txt");
     if (inFile) {
         string line;
         if (getline(inFile, line)) {
@@ -332,3 +334,64 @@ void LoadHighScore() {
         }
     }
 }
+
+string GetPlayerName(SDL_Renderer* renderer, SDL_Event& event) {
+    playerName.clear();
+    bool done = false;
+
+    // Load font
+    TTF_Font* font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 24);
+    SDL_Color textColor = {255, 255, 255, 255}; // White color
+    while(!done) {
+        while (SDL_PollEvent(&event)) {
+            if(event.type == SDL_QUIT) {
+                gameOver = true;
+                done = true;
+                break;
+            } 
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_RETURN) {
+                    done = true; // Confirm input on Enter key
+                } else if (event.key.keysym.sym == SDLK_BACKSPACE && !playerName.empty()) {
+                    playerName.pop_back(); // Remove last character
+                } else if(playerName.length() < 10) {
+                    playerName += static_cast<char>(event.key.keysym.sym); // Append char 
+                }
+            }
+        }
+        // Clear screen
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
+        SDL_RenderClear(renderer);
+
+        // Render "Enter your name:"
+        SDL_Surface* promptSurface = TTF_RenderText_Solid(font, "Enter your name:", textColor);
+        SDL_Texture* promptTexture = SDL_CreateTextureFromSurface(renderer, promptSurface);
+        SDL_FreeSurface(promptSurface);
+
+        // Render the player's current input
+        SDL_Surface* inputSurface = TTF_RenderText_Solid(font, playerName.c_str(), textColor);
+        SDL_Texture* inputTexture = SDL_CreateTextureFromSurface(renderer, inputSurface);
+        SDL_FreeSurface(inputSurface);
+
+        // Draw prompt
+        if (promptTexture) {
+            SDL_Rect promptRect = {50, 50, 200, 50};
+            SDL_RenderCopy(renderer, promptTexture, nullptr, &promptRect);
+            SDL_DestroyTexture(promptTexture);
+        }
+
+        // Draw player name
+        if (inputTexture) {
+            SDL_Rect inputRect = {50, 100, 200, 50};
+            SDL_RenderCopy(renderer, inputTexture, nullptr, &inputRect);
+            SDL_DestroyTexture(inputTexture);
+        }
+
+        // Present the screen
+        SDL_RenderPresent(renderer);
+    }
+    TTF_CloseFont(font); // Close the font
+    cout << "Created Player" << endl;
+    return playerName;
+}
+    
