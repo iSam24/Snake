@@ -4,29 +4,18 @@ Welcome to the Snake Game! It's uses C++ and Simple Direct Layer 2 (SDL2) for th
 
 ## Installation
 
-    1.Clone this repository
+   1.Clone this repository
 
-```
-git clone https://github.com/iSam24/Snake.git
-```
+ ` ``` git clone https://github.com/iSam24/Snake.git ``` `
 
-    2.  navigate to directory
+2. navigate to directory
+   ` ``` cd snake ``` `
+3. Build the project
 
-```
-cd snake
-```
+   `make`
+4. Run the games
 
-    3.  Build the project
-
-```
-make
-```
-
-    4. Run the game
-
-```
-./snakegame.exe
-```
+   ` ``` ./snakegame.exe ``` `
 
 ## Features
 
