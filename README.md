@@ -35,3 +35,7 @@ Welcome to the Snake Game! It's uses C++ and Simple Direct Layer 2 (SDL2) for th
 3. **Classic Gameplay:**
    * Control the snake to eat food and grow longer.
    * Avoid colliding with the walls or yourself to keep playing.
+
+## Game UI
+
+![1736016384398](image/README/1736016384398.png)
